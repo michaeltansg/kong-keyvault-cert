@@ -95,6 +95,52 @@ Then visit: `https://test.example.com:8443`
 - **Network Isolation**: Key Vault restricted to VM subnet via service endpoint
 - **SSL Required**: PostgreSQL connections require SSL
 
+## Certificate Rotation (Cron Job)
+
+To automatically rotate certificates on a monthly basis, set up a cron job on the VM.
+
+### Option A: User Crontab (Recommended)
+
+Simpler approach that runs as the `azureuser`:
+
+```bash
+# Edit the user's crontab
+crontab -e
+
+# Add this line (runs at 2:00 AM on the 1st of each month)
+0 2 1 * * KEYVAULT_NAME=<your-keyvault-name> /opt/kong/scripts/fetch-cert.sh >> /var/log/cert-rotation.log 2>&1
+```
+
+### Option B: System Crontab
+
+Use this if you need centralized management or the job to survive user deletion:
+
+```bash
+# Create a system cron file
+sudo tee /etc/cron.d/kong-cert-rotation << 'EOF'
+# Rotate Kong certificate monthly at 2:00 AM on the 1st
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+0 2 1 * * azureuser KEYVAULT_NAME=<your-keyvault-name> /opt/kong/scripts/fetch-cert.sh >> /var/log/cert-rotation.log 2>&1
+EOF
+
+sudo chmod 644 /etc/cron.d/kong-cert-rotation
+```
+
+### Verify Cron Job
+
+```bash
+# Check user crontab
+crontab -l
+
+# Check system crontab
+cat /etc/cron.d/kong-cert-rotation
+
+# Test the script manually
+KEYVAULT_NAME=<your-keyvault-name> /opt/kong/scripts/fetch-cert.sh
+```
+
 ## Clean Up
 
 ```bash
