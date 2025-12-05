@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Azure Key Vault to Kong certificate PoC\n\n- Terraform infrastructure for Azure (VNet, VM, PostgreSQL, Key Vault)\n- Kong Gateway and Nginx running in Docker containers\n- Scripts to fetch certificate from Key Vault and configure Kong routes\n- Self-signed certificate generation in Key Vault\n\n🤖 Generated with [Claude Code](https://claude.ai/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
