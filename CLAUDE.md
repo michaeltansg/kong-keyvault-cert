@@ -17,11 +17,23 @@ Azure Key Vault ← fetch-cert.sh (via Managed Identity)
 ```
 
 **Components:**
-- **Azure Key Vault**: Stores SSL/TLS certificates (self-signed for PoC)
+- **Azure Key Vault**: Stores SSL/TLS certificates (self-signed for PoC), RBAC-enabled, VNet-restricted
 - **Kong Gateway**: API gateway with TLS termination (Docker container)
 - **Nginx**: Test upstream service (Docker container)
-- **PostgreSQL Flexible Server**: Kong database (VNet integrated)
-- **User-Assigned Managed Identity**: Secure access to Key Vault
+- **PostgreSQL Flexible Server**: Kong database (VNet integrated, SSL required)
+- **User-Assigned Managed Identity**: Key Vault Secrets User role for certificate access
+
+## Security Configuration
+
+### Key Vault Access
+- **Authorization**: Azure RBAC (not Access Policies)
+- **Network**: Restricted to VM subnet via service endpoint
+- **Managed Identity Role**: `Key Vault Secrets User` (least privilege for reading certs with private key)
+- **Terraform Operator Role**: `Key Vault Certificates Officer` (for creating certs)
+
+### PostgreSQL
+- Private access only (VNet integrated)
+- SSL required (`KONG_PG_SSL=on`)
 
 ## Docker Containers
 
@@ -56,9 +68,9 @@ docker logs nginx-upstream
 ├── main.tf              # Provider, resource group, random suffix
 ├── variables.tf         # Input variables
 ├── outputs.tf           # Output values (IPs, URLs, commands)
-├── network.tf           # VNet, subnets, NSG, public IP, private DNS
+├── network.tf           # VNet, subnets (with Key Vault service endpoint), NSG, public IP
 ├── identity.tf          # User-assigned managed identity
-├── keyvault.tf          # Key Vault, access policies, self-signed cert
+├── keyvault.tf          # Key Vault (RBAC, VNet-restricted), role assignments, certificate
 ├── postgres.tf          # PostgreSQL Flexible Server
 ├── vm.tf                # VM with cloud-init
 ├── cloud-init.yaml      # Docker, Kong, nginx setup
@@ -87,12 +99,18 @@ export ARM_SUBSCRIPTION_ID="<subscription-id>"
 
 ## Commands
 
+### Generate SSH Key (macOS)
+
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/azure_vm_key
+```
+
 ### Deploy Infrastructure
 
 ```bash
 # Create terraform.tfvars with your values
 cat > terraform.tfvars << EOF
-ssh_public_key          = "ssh-rsa AAAA..."
+ssh_public_key          = "$(cat ~/.ssh/azure_vm_key.pub)"
 postgres_admin_password = "YourSecurePassword123!"
 EOF
 
@@ -104,8 +122,8 @@ terraform apply
 ### Post-Deployment (on VM)
 
 ```bash
-# SSH to VM (command shown in terraform output)
-ssh azureuser@<public-ip>
+# SSH to VM (use the key you generated)
+ssh -i ~/.ssh/azure_vm_key azureuser@<public-ip>
 
 # Wait for cloud-init to complete (~5 mins)
 cloud-init status --wait
@@ -120,13 +138,27 @@ KEYVAULT_NAME=<from-output> /opt/kong/scripts/fetch-cert.sh
 curl -k https://localhost:8443 -H 'Host: test.example.com'
 ```
 
+### Browser Testing
+
+To test in a browser, add the VM's public IP to your local hosts file:
+
+```bash
+# Edit hosts file (macOS/Linux)
+sudo nano /etc/hosts
+
+# Add this line (replace with actual VM IP)
+<vm-public-ip>    test.example.com
+```
+
+Then visit `https://test.example.com:8443` in your browser. Accept the certificate warning (self-signed).
+
 ### Verify Certificate
 
 ```bash
 # Check certificate in Kong
 curl http://localhost:8001/certificates
 
-# Verify TLS certificate
+# Verify TLS certificate details
 openssl s_client -connect <public-ip>:8443 -servername test.example.com
 ```
 
@@ -153,5 +185,6 @@ terraform destroy -auto-approve
 
 - `vm_public_ip`: Public IP for SSH and Kong access
 - `vm_ssh_command`: Ready-to-use SSH command
+- `keyvault_name`: Key Vault name (needed for fetch-cert.sh)
 - `kong_proxy_https_url`: HTTPS endpoint
 - `test_https_command`: curl command to test setup

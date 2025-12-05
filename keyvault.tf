@@ -1,4 +1,4 @@
-# Key Vault
+# Key Vault with RBAC authorization
 resource "azurerm_key_vault" "main" {
   name                       = "kv-certpoc-${random_string.suffix.result}"
   location                   = azurerm_resource_group.main.location
@@ -7,57 +7,32 @@ resource "azurerm_key_vault" "main" {
   sku_name                   = "standard"
   soft_delete_retention_days = 7
   purge_protection_enabled   = false
+  enable_rbac_authorization  = true
+
+  # Network access - allow only from VM subnet and Azure services
+  network_acls {
+    default_action             = "Deny"
+    bypass                     = "AzureServices"
+    virtual_network_subnet_ids = [azurerm_subnet.vm.id]
+  }
 
   tags = var.tags
 }
 
-# Access policy for current user (Terraform operator)
-resource "azurerm_key_vault_access_policy" "terraform" {
-  key_vault_id = azurerm_key_vault.main.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = data.azurerm_client_config.current.object_id
-
-  certificate_permissions = [
-    "Create",
-    "Delete",
-    "Get",
-    "Import",
-    "List",
-    "Update",
-    "Recover",
-    "Purge",
-  ]
-
-  secret_permissions = [
-    "Get",
-    "List",
-    "Set",
-    "Delete",
-    "Purge",
-  ]
-
-  key_permissions = [
-    "Get",
-    "List",
-    "Create",
-  ]
+# RBAC: Terraform operator - Key Vault Certificates Officer
+# Needed to create/manage the self-signed certificate
+resource "azurerm_role_assignment" "terraform_certificates_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Certificates Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Access policy for Managed Identity (VM)
-resource "azurerm_key_vault_access_policy" "managed_identity" {
-  key_vault_id = azurerm_key_vault.main.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = azurerm_user_assigned_identity.main.principal_id
-
-  certificate_permissions = [
-    "Get",
-    "List",
-  ]
-
-  secret_permissions = [
-    "Get",
-    "List",
-  ]
+# RBAC: Managed Identity - Key Vault Secrets User
+# Needed to download certificate with private key (stored as secret)
+resource "azurerm_role_assignment" "mi_secrets_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.main.principal_id
 }
 
 # Self-signed certificate for testing
@@ -108,5 +83,5 @@ resource "azurerm_key_vault_certificate" "test" {
     }
   }
 
-  depends_on = [azurerm_key_vault_access_policy.terraform]
+  depends_on = [azurerm_role_assignment.terraform_certificates_officer]
 }
