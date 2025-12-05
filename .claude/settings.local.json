@@ -4,7 +4,10 @@
       "Bash(chmod:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Azure Key Vault to Kong certificate PoC\n\n- Terraform infrastructure for Azure (VNet, VM, PostgreSQL, Key Vault)\n- Kong Gateway and Nginx running in Docker containers\n- Scripts to fetch certificate from Key Vault and configure Kong routes\n- Self-signed certificate generation in Key Vault\n\n🤖 Generated with [Claude Code](https://claude.ai/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git commit -m \"$(cat <<''EOF''\nSwitch Key Vault to RBAC with VNet-only access\n\n- Enable RBAC authorization instead of Access Policies\n- Add network ACLs to restrict access to VM subnet only\n- Add Key Vault service endpoint to VM subnet\n- Terraform operator: Key Vault Certificates Officer role\n- Managed Identity: Key Vault Secrets User role (least privilege)\n- Update CLAUDE.md with security config, SSH key generation, browser testing\n\n🤖 Generated with [Claude Code](https://claude.ai/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nSwitch Key Vault to RBAC with VNet-only access\n\n- Enable RBAC authorization instead of Access Policies\n- Add network ACLs to restrict access to VM subnet only\n- Add Key Vault service endpoint to VM subnet\n- Terraform operator: Key Vault Certificates Officer role\n- Managed Identity: Key Vault Secrets User role (least privilege)\n- Update CLAUDE.md with security config, SSH key generation, browser testing\n\n🤖 Generated with [Claude Code](https://claude.ai/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(gh repo create:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []
